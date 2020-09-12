@@ -1,6 +1,8 @@
 import telepot
 import time
 import json
+import Flask
+import requests
 from telepot.loop import MessageLoop
 from telepot.namedtuple import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
@@ -119,133 +121,140 @@ class User():
 
 
 bot = telepot.Bot('1187352721:AAEU2YwIDfvVD9xO2MskgwAFR4gGHyGlZds')
-
+bot.setWebhook("https://https://shopperlistone.herokuapp.com/{}".format(secret), max_connections=1)
 
 users = {}
+
+app = Flask(__name__)
 
 def back_to_basic_stage(chat_id):
     users[chat_id].change_product("")
     users[chat_id].change_status("Getting products")
     bot.sendMessage(chat_id, "Продолжайте ввод продуктов или напишите всё для завершения")
 
+@app.route('/{}'.format(secret), methods=["POST"])
 def handle(msg):
+    update = request.get_json()
     global status
     global product
-    content_type, chat_type, chat_id = telepot.glance(msg)
-    print(msg["text"])
-    if chat_id not in users.keys():
-        users[chat_id] = User(chat_id)
-    if users[chat_id].get_status() == "Start":
-        if msg["text"] == "/start":
-            bot.sendMessage(chat_id, """
-Привет! Я бот-планировщик покупок.
-Введите покупки по одной. Для окончания списка введите 'всё': """)
-        else:
-            users[chat_id].change_status("Getting products")
-    if users[chat_id].get_status() == "Getting products" and msg["text"].lower() in ["всё", "все"]:
-        users[chat_id].sorter().sorting_products()
-        bot.sendMessage(chat_id, "Ваш продуктовый список готов")
-        if users[chat_id].sorter().get_encoded():
-            bot.sendMessage(chat_id, users[chat_id].sorter().output_list())
-        else:
-            bot.sendMessage(chat_id, "Сортированный списк пуст")
-        if users[chat_id].sorter().get_other():
-            bot.sendMessage(chat_id, "Продукты из неопределенной категории:")
-            bot.sendMessage(chat_id, users[chat_id].sorter().output_other())
-        with open("products.txt", "a", encoding='utf-8') as file:
-            file.write(str(users[chat_id].sorter().get_new_products()))
-        users[chat_id].sorter().clean_list()
-        bot.sendMessage(chat_id, "Списки очищены. Для работы со следующим списком, начните вводить продукты")
-        status = "Start"
-    if users[chat_id].get_status() == "Getting products" and msg["text"].lower() not in ["всё", "все"]:
-        sorter = users[chat_id].sorter()
-        print(sorter)
-        if sorter.if_exists(msg["text"].lower()):
-            users[chat_id].sorter().add_to_encoded(msg["text"].lower())
-            bot.sendMessage(chat_id, "Продукт " + msg["text"] + " добавлен")
-        else:
-            users[chat_id].change_status("New product")
-            users[chat_id].change_product(msg["text"].lower())
-    if users[chat_id].get_status() == "New product":
-        markup = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Да"), KeyboardButton(text="Нет")]], resize_keyboard=True)
-        bot.sendMessage(chat_id, "Добавить " + users[chat_id].get_product() + " в словарь?", reply_markup=markup)
-        users[chat_id].change_status("Managing list")
-    if users[chat_id].get_status() == "Managing list" and msg["text"] not in ["Да", "Нет"]:
-        bot.sendMessage(chat_id, "Пожалуйста, введите Да или Нет")
-    if users[chat_id].get_status() == "Managing list" and msg["text"] == "Да":
-        users[chat_id].change_status("Encoding")
-    if users[chat_id].get_status() == "Managing list" and msg["text"] == "Нет":
-        users[chat_id].sorter().add_to_other(users[chat_id].get_product().lower())
-        bot.sendMessage(chat_id, "Пожалуйста, введите следующий продукт или напишите 'всё' для вывода списка", reply_markup=ReplyKeyboardRemove())
-        users[chat_id].change_status("Getting products")
-    if users[chat_id].get_status() == "Encoding" and msg["text"] not in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]:
-        bot.sendMessage(chat_id, """
-Введите категорию продукта:
-1. бытовые товары
-2. хлебобулочные изделия
-3. молочная продукция
-4. овощи
-5. фрукты
-6. мясные продукты
-7. рыбные продукты
-8. консервы
-9. напитки
-10. другие
-""", reply_markup=ReplyKeyboardRemove())
-    if msg["text"] == "1" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "01000")
-        back_to_basic_stage(chat_id)
+    if "message" in update:
+        text = update["message"]["text"]
+        chat_id = update["message"]["chat"]["id"]
+      print(text)
+      if chat_id not in users.keys():
+          users[chat_id] = User(chat_id)
+      if users[chat_id].get_status() == "Start":
+          if update["message"]["text"] == "/start":
+              bot.sendMessage(chat_id, """
+  Привет! Я бот-планировщик покупок.
+  Введите покупки по одной. Для окончания списка введите 'всё': """)
+          else:
+              users[chat_id].change_status("Getting products")
+      if users[chat_id].get_status() == "Getting products" and update["message"]["text"].lower() in ["всё", "все"]:
+          users[chat_id].sorter().sorting_products()
+          bot.sendMessage(chat_id, "Ваш продуктовый список готов")
+          if users[chat_id].sorter().get_encoded():
+              bot.sendMessage(chat_id, users[chat_id].sorter().output_list())
+          else:
+              bot.sendMessage(chat_id, "Сортированный списк пуст")
+          if users[chat_id].sorter().get_other():
+              bot.sendMessage(chat_id, "Продукты из неопределенной категории:")
+              bot.sendMessage(chat_id, users[chat_id].sorter().output_other())
+          with open("products.txt", "a", encoding='utf-8') as file:
+              file.write(str(users[chat_id].sorter().get_new_products()))
+          users[chat_id].sorter().clean_list()
+          bot.sendMessage(chat_id, "Списки очищены. Для работы со следующим списком, начните вводить продукты")
+          status = "Start"
+      if users[chat_id].get_status() == "Getting products" and update["message"]["text"].lower() not in ["всё", "все"]:
+          sorter = users[chat_id].sorter()
+          print(sorter)
+          if sorter.if_exists(update["message"]["text"].lower()):
+              users[chat_id].sorter().add_to_encoded(update["message"]["text"].lower())
+              bot.sendMessage(chat_id, "Продукт " + update["message"]["text"] + " добавлен")
+          else:
+              users[chat_id].change_status("New product")
+              users[chat_id].change_producttext.lower())
+      if users[chat_id].get_status() == "New product":
+          markup = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Да"), KeyboardButton(text="Нет")]], resize_keyboard=True)
+          bot.sendMessage(chat_id, "Добавить " + users[chat_id].get_product() + " в словарь?", reply_markup=markup)
+          users[chat_id].change_status("Managing list")
+      if users[chat_id].get_status() == "Managing list" and update["message"]["text"] not in ["Да", "Нет"]:
+          bot.sendMessage(chat_id, "Пожалуйста, введите Да или Нет")
+      if users[chat_id].get_status() == "Managing list" and update["message"]["text"] == "Да":
+          users[chat_id].change_status("Encoding")
+      if users[chat_id].get_status() == "Managing list" and update["message"]["text"] == "Нет":
+          users[chat_id].sorter().add_to_other(users[chat_id].get_product().lower())
+          bot.sendMessage(chat_id, "Пожалуйста, введите следующий продукт или напишите 'всё' для вывода списка", reply_markup=ReplyKeyboardRemove())
+          users[chat_id].change_status("Getting products")
+      if users[chat_id].get_status() == "Encoding" and update["message"]["text"] not in ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]:
+          bot.sendMessage(chat_id, """
+  Введите категорию продукта:
+  1. бытовые товары
+  2. хлебобулочные изделия
+  3. молочная продукция
+  4. овощи
+  5. фрукты
+  6. мясные продукты
+  7. рыбные продукты
+  8. консервы
+  9. напитки
+  10. другие
+  """, reply_markup=ReplyKeyboardRemove())
+      if update["message"]["text"] == "1" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "01000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "2" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(product, "02000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "2" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(product, "02000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "3" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "03000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "3" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "03000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "4" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "04000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "4" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "04000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "5" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "05000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "5" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "05000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "6" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "06000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "6" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "06000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "7" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "07000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "7" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "07000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "8" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(product, "08000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "8" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(product, "08000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "9" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "09000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "9" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "09000")
+          back_to_basic_stage(chat_id)
 
-    if msg["text"] == "10" and users[chat_id].get_status() == "Encoding":
-        bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
-        users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "10000")
-        back_to_basic_stage(chat_id)
+      if update["message"]["text"] == "10" and users[chat_id].get_status() == "Encoding":
+          bot.sendMessage(chat_id, "Добавляем в словарь продукт " + users[chat_id].get_product())
+          users[chat_id].sorter().self_encode_product(users[chat_id].get_product(), "10000")
+          back_to_basic_stage(chat_id)
+    return "OK"
 
 
-MessageLoop(bot, handle).run_as_thread()
-print('Listening ...')
+#MessageLoop(bot, handle).run_as_thread()
+#print('Listening ...')
 
-while 1:
-    time.sleep(10)
+#while 1:
+#    time.sleep(10)
 
