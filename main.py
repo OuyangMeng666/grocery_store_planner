@@ -121,7 +121,8 @@ class User():
 
 
 bot = telepot.Bot('1187352721:AAEU2YwIDfvVD9xO2MskgwAFR4gGHyGlZds')
-bot.setWebhook("https://shopperlistone.herokuapp.com/", max_connections=1)
+secret = 'ouyang'
+bot.setWebhook("https://shopperlistone.herokuapp.com/".format(secret), max_connections=1)
 
 users = {}
 
