@@ -1,1 +1,1 @@
-web: waitress-serve --listen=*:8000 gettingstarted.wsgi
+web: waitress-serve --listen=*:8000 shopperlistone.wsgi
